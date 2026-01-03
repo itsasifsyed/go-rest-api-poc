@@ -11,11 +11,12 @@ import (
 )
 
 type WebServerConfig struct {
-	Env            string
-	Port           string
-	CORSOrigins    []string
-	EnableSwagger  bool
-	RequestTimeout time.Duration
+	Env           string
+	Port          string
+	CORSOrigins   []string
+	EnableSwagger bool
+	ReadTimeout   time.Duration
+	WriteTimeout  time.Duration
 }
 
 type DBConfig struct {
@@ -102,11 +103,12 @@ func getEnvAsInt(key string, defaultVal int) int {
 // -------------------------
 func loadWebServerConfig() WebServerConfig {
 	return WebServerConfig{
-		Env:            getEnv("ENV", "dev"),
-		Port:           getEnv("WEB_PORT", "8080"),
-		CORSOrigins:    strings.Split(getEnv("CORS_ORIGINS", "*"), ","),
-		EnableSwagger:  getEnvAsBool("ENABLE_SWAGGER", true),
-		RequestTimeout: getEnvAsDuration("REQUEST_TIMEOUT", 5*time.Second),
+		Env:           getEnv("ENV", "dev"),
+		Port:          getEnv("WEB_PORT", "8080"),
+		CORSOrigins:   strings.Split(getEnv("CORS_ORIGINS", "*"), ","),
+		EnableSwagger: getEnvAsBool("ENABLE_SWAGGER", true),
+		ReadTimeout:   getEnvAsDuration("READ_TIMEOUT", 5*time.Second),
+		WriteTimeout:  getEnvAsDuration("WRITE_TIMEOUT", 5*time.Second),
 	}
 }
 
@@ -147,7 +149,6 @@ func loadAuthConfig() AuthConfig {
 }
 
 func LoadConfig() *Config {
-	logger.EmptyInfoBlock(2)
 	logger.Info("loading config...")
 
 	// load env file from local & check for error
@@ -163,6 +164,5 @@ func LoadConfig() *Config {
 	config.Auth = loadAuthConfig()
 
 	logger.Info("config is successfully loaded!!!")
-	logger.EmptyInfoBlock(2)
 	return config
 }
