@@ -2,7 +2,8 @@ package main
 
 import (
 	"context"
-	"rest_api_poc/config"
+	"rest_api_poc/internal/api"
+	"rest_api_poc/internal/config"
 )
 
 func main() {
@@ -13,7 +14,7 @@ func main() {
 	cfg := config.LoadConfig()
 
 	// Start server, get shutdown function
-	webDispose := startServer(cfg)
+	webDispose := api.StartServer(cfg)
 	defer webDispose(ctx)
 }
 
@@ -25,9 +26,6 @@ func main() {
 	4. In node.js, we have controller, services, and repositories, what is the approach here?
 	5. Where do we write the business logic and do validations?
 */
-
-
-
 
 /*
 	1. Connect to postgres with retry mechanism and logging and migrations

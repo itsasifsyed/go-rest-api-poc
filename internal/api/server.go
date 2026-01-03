@@ -1,12 +1,12 @@
-package main
+package api
 
 import (
 	"context"
 	"fmt"
 	"net/http"
-	"rest_api_poc/config"
-	"rest_api_poc/logger"
-	"rest_api_poc/router"
+	"rest_api_poc/internal/api/router"
+	"rest_api_poc/internal/config"
+	"rest_api_poc/pkg/logger"
 	"strings"
 	"time"
 
@@ -14,7 +14,7 @@ import (
 )
 
 // startServer starts the HTTP server and handles graceful shutdown
-func startServer(cfg *config.Config) func(ctx context.Context) error {
+func StartServer(cfg *config.Config) func(ctx context.Context) error {
 	mux := router.SetupRouter()
 
 	addr := ":" + cfg.WebServer.Port
@@ -24,7 +24,7 @@ func startServer(cfg *config.Config) func(ctx context.Context) error {
 		ReadTimeout:  cfg.WebServer.ReadTimeout,
 		WriteTimeout: cfg.WebServer.WriteTimeout,
 	}
-	PrintWelcome(addr)
+	printWelcome(addr)
 	// logger.InfoBlock("Starting server on %s", addr)
 
 	// This blocks until the server stops
@@ -49,7 +49,7 @@ func startServer(cfg *config.Config) func(ctx context.Context) error {
 	}
 }
 
-func PrintWelcome(addr string) {
+func printWelcome(addr string) {
 	c := color.New(color.FgHiCyan)
 	srvMsg := fmt.Sprintf("🚀🚀🚀 Starting Axil server on %s 🚀🚀🚀", addr)
 	line := strings.Repeat("*", len(srvMsg))

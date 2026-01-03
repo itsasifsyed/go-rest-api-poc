@@ -2,14 +2,14 @@ package router
 
 import (
 	"net/http"
-	"rest_api_poc/handlers"
+	"rest_api_poc/internal/health"
 )
 
 func SetupRouter() http.Handler {
 	mux := http.NewServeMux()
 
 	// health check routes
-	mux.HandleFunc("/health", handlers.GetHealth)
-
+	healthHandler := health.NewHandler()
+	RegisterHealthRoutes(mux, healthHandler)
 	return mux
 }

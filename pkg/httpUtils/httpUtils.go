@@ -1,9 +1,9 @@
-package handlers
+package httpUtils
 
 import (
 	"encoding/json"
 	"net/http"
-	"rest_api_poc/logger"
+	"rest_api_poc/pkg/logger"
 )
 
 // WriteJSON writes JSON response

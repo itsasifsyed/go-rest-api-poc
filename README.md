@@ -131,3 +131,4 @@ This is a proof-of-concept REST API built in Go, demonstrating a typical backend
 - Use `context.Context` to carry request-scoped info like user ID and language.
 - Error responses should be standardized JSON objects.
 - Start small, then layer additional middleware and features.
+

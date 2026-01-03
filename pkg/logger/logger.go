@@ -3,7 +3,7 @@ package logger
 import (
 	"fmt"
 	"os"
-	"rest_api_poc/utils"
+	"rest_api_poc/pkg/timeUtils"
 	"strings"
 
 	"github.com/fatih/color"
@@ -13,7 +13,7 @@ import (
 // Helper to format timestamp in UTC
 // -------------------------
 func timestamp() string {
-	return utils.TimeStampUTC()
+	return timeUtils.TimeStampUTC()
 }
 
 type LogConfig struct {
