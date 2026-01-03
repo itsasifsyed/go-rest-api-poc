@@ -18,9 +18,21 @@ func main() {
 }
 
 /*
-	1. Connect to postgres with retry mechanism and logging
+	**** Connecting to postgres DB doubts****
+	1. Is jackc package the best available?
+	2. Why do we need both 	"github.com/jackc/pgx/v5" and "github.com/jackc/pgx/v5/pgconn"
+	3. What is the best way to pass the database connection to handlers?
+	4. In node.js, we have controller, services, and repositories, what is the approach here?
+	5. Where do we write the business logic and do validations?
+*/
+
+
+
+
+/*
+	1. Connect to postgres with retry mechanism and logging and migrations
 	2. Create MODEL for persons
-	3. API endpoints to CRUD persons with request validations
+	3. API endpoints to CRUD persons with request validations and versioning
 	4. Login mechanism with JWT token, check in headers and also for token
 	5. Permission check to perform Write operations on persons api using a middleware
 	6. Error middleware to handle error globally
