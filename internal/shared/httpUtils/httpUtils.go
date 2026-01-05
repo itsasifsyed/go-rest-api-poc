@@ -3,7 +3,7 @@ package httpUtils
 import (
 	"encoding/json"
 	"net/http"
-	"rest_api_poc/internal/utils/logger"
+	"rest_api_poc/internal/shared/logger"
 )
 
 // WriteJSON writes JSON response

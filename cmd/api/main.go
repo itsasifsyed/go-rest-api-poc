@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"rest_api_poc/internal/di"
-	"rest_api_poc/internal/platform"
-	"rest_api_poc/internal/platform/config"
-	"rest_api_poc/internal/platform/db"
+	"rest_api_poc/internal/infra"
+	"rest_api_poc/internal/infra/config"
+	"rest_api_poc/internal/infra/db"
 )
 
 func main() {
@@ -24,7 +24,7 @@ func main() {
 	container := di.NewContainer(database, cfg)
 
 	// Start server, get shutdown function
-	webDispose := platform.StartServer(container)
+	webDispose := infra.StartServer(container)
 	defer webDispose(ctx)
 }
 

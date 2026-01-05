@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"rest_api_poc/internal/di"
 	"rest_api_poc/internal/infra/router"
-	"rest_api_poc/internal/utils/logger"
+	"rest_api_poc/internal/shared/logger"
 	"strings"
 	"time"
 

@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"rest_api_poc/internal/infra/config"
-	"rest_api_poc/internal/utils/logger"
+	"rest_api_poc/internal/shared/logger"
 	"time"
 )
 

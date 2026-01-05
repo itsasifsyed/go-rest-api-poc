@@ -3,7 +3,7 @@ package router
 import (
 	"net/http"
 	"rest_api_poc/internal/di"
-	"rest_api_poc/internal/services/product"
+	"rest_api_poc/internal/domain/product"
 
 	"github.com/go-chi/chi/v5"
 )

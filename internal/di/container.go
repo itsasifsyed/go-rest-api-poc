@@ -1,9 +1,9 @@
 package di
 
 import (
-	"rest_api_poc/internal/platform/config"
-	"rest_api_poc/internal/platform/db"
-	"rest_api_poc/internal/services/product"
+	"rest_api_poc/internal/domain/product"
+	"rest_api_poc/internal/infra/config"
+	"rest_api_poc/internal/infra/db"
 )
 
 // Container holds all application dependencies

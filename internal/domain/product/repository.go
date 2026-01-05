@@ -3,7 +3,7 @@ package product
 import (
 	"context"
 	"errors"
-	"rest_api_poc/internal/platform/db"
+	"rest_api_poc/internal/infra/db"
 )
 
 var (

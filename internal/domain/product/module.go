@@ -1,6 +1,6 @@
 package product
 
-import "rest_api_poc/internal/platform/db"
+import "rest_api_poc/internal/infra/db"
 
 // NewModule creates a new product module with all dependencies
 // It follows dependency injection pattern for production-ready code

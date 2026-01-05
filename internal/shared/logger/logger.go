@@ -3,7 +3,7 @@ package logger
 import (
 	"fmt"
 	"os"
-	"rest_api_poc/internal/utils/timeUtils"
+	"rest_api_poc/internal/shared/timeUtils"
 	"strings"
 
 	"github.com/fatih/color"

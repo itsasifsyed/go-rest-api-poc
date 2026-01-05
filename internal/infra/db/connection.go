@@ -2,7 +2,7 @@ package db
 
 import (
 	"context"
-	"rest_api_poc/internal/utils/logger"
+	"rest_api_poc/internal/shared/logger"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
