@@ -3,6 +3,7 @@ package router
 import (
 	"net/http"
 	"rest_api_poc/internal/di"
+	"rest_api_poc/internal/domain/health"
 	"rest_api_poc/internal/domain/product"
 
 	"github.com/go-chi/chi/v5"
@@ -15,6 +16,9 @@ func SetupRouter(container *di.Container) http.Handler {
 	r := chi.NewRouter()
 
 	// Register routes for each service module
+	// Health check routes
+	health.RegisterRoutes(r, container.HealthHandler)
+
 	// Product routes
 	product.RegisterRoutes(r, container.ProductHandler)
 

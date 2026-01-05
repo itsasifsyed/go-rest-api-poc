@@ -7,25 +7,46 @@ import (
 	"time"
 )
 
-type Handler struct{}
+type Handler struct {
+	service Service
+}
 
 type HealthResponse struct {
 	Status    string `json:"status"`
 	TimeStamp string `json:"timestamp"`
 	Uptime    string `json:"uptime"`
+	Database  string `json:"database"`
 }
 
-func NewHandler() *Handler {
-	return &Handler{}
+func NewHandler(s Service) *Handler {
+	return &Handler{service: s}
 }
 
 var startTime = time.Now()
 
 func (h *Handler) GetHealth(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context() // Extract context from request
+
+	// Check health including database
+	healthCheck, err := h.service.CheckHealth(ctx)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Build complete response
 	resp := HealthResponse{
-		Status:    "OK",
+		Status:    healthCheck.Status,
 		TimeStamp: timeUtils.RFCTimeStampUTC(),
 		Uptime:    timeUtils.Uptime(startTime),
+		Database:  healthCheck.Database,
 	}
-	httpUtils.WriteJson(w, http.StatusOK, resp)
+
+	// Determine HTTP status based on database health
+	statusCode := http.StatusOK
+	if healthCheck.Database != "healthy" {
+		statusCode = http.StatusServiceUnavailable
+	}
+
+	httpUtils.WriteJson(w, statusCode, resp)
 }

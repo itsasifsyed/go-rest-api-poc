@@ -2,7 +2,7 @@ package config
 
 import (
 	"os"
-	"rest_api_poc/internal/utils/logger"
+	"rest_api_poc/internal/shared/logger"
 	"strconv"
 	"strings"
 	"time"

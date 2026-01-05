@@ -1,6 +1,7 @@
 package di
 
 import (
+	"rest_api_poc/internal/domain/health"
 	"rest_api_poc/internal/domain/product"
 	"rest_api_poc/internal/infra/config"
 	"rest_api_poc/internal/infra/db"
@@ -14,6 +15,7 @@ type Container struct {
 	DB             db.DB
 	Config         *config.Config
 	ProductHandler *product.Handler
+	HealthHandler  *health.Handler
 }
 
 // NewContainer creates a new container with all dependencies
@@ -23,5 +25,6 @@ func NewContainer(database db.DB, cfg *config.Config) *Container {
 		DB:             database,
 		Config:         cfg,
 		ProductHandler: product.NewModule(database),
+		HealthHandler:  health.NewModule(database),
 	}
 }
