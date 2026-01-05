@@ -1,28 +1,29 @@
-package api
+package platform
 
 import (
 	"context"
 	"fmt"
 	"net/http"
-	"rest_api_poc/internal/api/router"
-	"rest_api_poc/internal/config"
-	"rest_api_poc/pkg/logger"
+	"rest_api_poc/internal/di"
+	"rest_api_poc/internal/platform/router"
+	"rest_api_poc/internal/utils/logger"
 	"strings"
 	"time"
 
 	"github.com/fatih/color"
 )
 
-// startServer starts the HTTP server and handles graceful shutdown
-func StartServer(cfg *config.Config) func(ctx context.Context) error {
-	mux := router.SetupRouter()
+// StartServer starts the HTTP server and handles graceful shutdown
+// It accepts the dependency container which manages all application dependencies
+func StartServer(container *di.Container) func(ctx context.Context) error {
+	r := router.SetupRouter(container)
 
-	addr := ":" + cfg.WebServer.Port
+	addr := ":" + container.Config.WebServer.Port
 	srv := &http.Server{
 		Addr:         addr,
-		Handler:      mux,
-		ReadTimeout:  cfg.WebServer.ReadTimeout,
-		WriteTimeout: cfg.WebServer.WriteTimeout,
+		Handler:      r,
+		ReadTimeout:  container.Config.WebServer.ReadTimeout,
+		WriteTimeout: container.Config.WebServer.WriteTimeout,
 	}
 	printWelcome(addr)
 	// logger.InfoBlock("Starting server on %s", addr)

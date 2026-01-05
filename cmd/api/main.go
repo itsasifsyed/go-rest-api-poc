@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
-	"rest_api_poc/internal/api"
-	"rest_api_poc/internal/config"
+	"rest_api_poc/internal/di"
+	"rest_api_poc/internal/platform"
+	"rest_api_poc/internal/platform/config"
+	"rest_api_poc/internal/platform/db"
 )
 
 func main() {
@@ -13,19 +15,18 @@ func main() {
 	// Load config
 	cfg := config.LoadConfig()
 
+	// Init DB with retry mechanism and graceful shutdown
+	database, dbDispose := db.SetupDB(ctx, &cfg.DB)
+	defer dbDispose(ctx)
+
+	// Create dependency container
+	// Simple, explicit dependency injection - no magic, easy to understand
+	container := di.NewContainer(database, cfg)
+
 	// Start server, get shutdown function
-	webDispose := api.StartServer(cfg)
+	webDispose := platform.StartServer(container)
 	defer webDispose(ctx)
 }
-
-/*
-	**** Connecting to postgres DB doubts****
-	1. Is jackc package the best available?
-	2. Why do we need both 	"github.com/jackc/pgx/v5" and "github.com/jackc/pgx/v5/pgconn"
-	3. What is the best way to pass the database connection to handlers?
-	4. In node.js, we have controller, services, and repositories, what is the approach here?
-	5. Where do we write the business logic and do validations?
-*/
 
 /*
 	1. Connect to postgres with retry mechanism and logging and migrations

@@ -2,7 +2,7 @@ package config
 
 import (
 	"os"
-	"rest_api_poc/pkg/logger"
+	"rest_api_poc/internal/utils/logger"
 	"strconv"
 	"strings"
 	"time"
@@ -21,6 +21,7 @@ type WebServerConfig struct {
 
 type DBConfig struct {
 	ConnectionString string
+	DBRetryCount     int
 }
 
 type CacheConfig struct {
@@ -115,6 +116,7 @@ func loadWebServerConfig() WebServerConfig {
 func loadDBConfig() DBConfig {
 	return DBConfig{
 		ConnectionString: mustGetEnv("DB_CONNECTION_STRING"),
+		DBRetryCount:       getEnvAsInt("DB_RETRY_COUNT", 3),
 	}
 }
 

@@ -2,8 +2,8 @@ package health
 
 import (
 	"net/http"
-	"rest_api_poc/pkg/httpUtils"
-	"rest_api_poc/pkg/timeUtils"
+	"rest_api_poc/internal/utils/httpUtils"
+	"rest_api_poc/internal/utils/timeUtils"
 	"time"
 )
 
