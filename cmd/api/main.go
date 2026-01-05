@@ -16,7 +16,7 @@ func main() {
 	cfg := config.LoadConfig()
 
 	// Init DB with retry mechanism and graceful shutdown
-	database, dbDispose := db.SetupDB(ctx, &cfg.DB)
+	database, dbDispose := db.SetupDB(ctx, &cfg.DB, cfg.WebServer.Env)
 	defer dbDispose(ctx)
 
 	// Create dependency container

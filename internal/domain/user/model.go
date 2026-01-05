@@ -1,11 +1,13 @@
-package product
+package user
 
 import "time"
 
-type Product struct {
+// User represents a user in the system
+type User struct {
 	ID        string     `json:"id"`
-	Name      string     `json:"name"`
-	Price     float64    `json:"price"`
+	FirstName string     `json:"first_name"`
+	LastName  string     `json:"last_name"`
+	Email     string     `json:"email"`
 	CreatedBy *string    `json:"created_by,omitempty"`
 	CreatedAt time.Time  `json:"created_at"`
 	UpdatedBy *string    `json:"updated_by,omitempty"`

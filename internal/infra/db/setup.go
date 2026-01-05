@@ -16,7 +16,7 @@ var (
 // SetupDB initializes the database connection with retry mechanism and returns a dispose function
 // for graceful shutdown. This function should be called from main and the returned dispose
 // function should be deferred.
-func SetupDB(ctx context.Context, cfg *config.DBConfig) (DB, func(ctx context.Context) error) {
+func SetupDB(ctx context.Context, cfg *config.DBConfig, environment string) (DB, func(ctx context.Context) error) {
 	logger.InfoBlock("Setting up database...")
 
 	// Initialize database with retry mechanism
@@ -36,6 +36,16 @@ func SetupDB(ctx context.Context, cfg *config.DBConfig) (DB, func(ctx context.Co
 
 	if err := dbInstance.Health(healthCtx); err != nil {
 		logger.FatalBlock("Database health check failed: %v", err)
+	}
+
+	// Run database migrations
+	if err := RunMigrations(cfg.ConnectionString); err != nil {
+		logger.FatalBlock("Failed to run migrations: %v", err)
+	}
+
+	// Run database seeds (only in non-production environments)
+	if err := RunSeeds(ctx, pool, environment); err != nil {
+		logger.FatalBlock("Failed to run seeds: %v", err)
 	}
 
 	logger.SuccessBlock("Database setup completed successfully")
