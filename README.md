@@ -132,3 +132,6 @@ This is a proof-of-concept REST API built in Go, demonstrating a typical backend
 - Error responses should be standardized JSON objects.
 - Start small, then layer additional middleware and features.
 
+
+
+## Get process id of port lsof -ti :8080

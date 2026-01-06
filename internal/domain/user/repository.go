@@ -38,10 +38,18 @@ func (r *repository) CreateUser(ctx context.Context, u *User) error {
 
 func (r *repository) GetUser(ctx context.Context, id string) (*User, error) {
 	row := r.db.Pool().QueryRow(ctx,
-		"SELECT id, first_name, last_name, email FROM users WHERE id=$1", id,
+		`SELECT u.id, u.first_name, u.last_name, u.email, u.is_active, u.is_blocked, 
+		        u.blocked_at, u.blocked_by, u.created_at, u.updated_at, u.deleted_at, ro.name as role
+		 FROM users u
+		 JOIN roles ro ON u.role_id = ro.id
+		 WHERE u.id=$1 AND u.deleted_at IS NULL`, id,
 	)
 	user := &User{}
-	if err := row.Scan(&user.ID, &user.FirstName, &user.LastName, &user.Email); err != nil {
+	if err := row.Scan(
+		&user.ID, &user.FirstName, &user.LastName, &user.Email,
+		&user.IsActive, &user.IsBlocked, &user.BlockedAt, &user.BlockedBy,
+		&user.CreatedAt, &user.UpdatedAt, &user.DeletedAt, &user.Role,
+	); err != nil {
 		return nil, err
 	}
 	return user, nil
@@ -50,7 +58,12 @@ func (r *repository) GetUser(ctx context.Context, id string) (*User, error) {
 // ListUsers retrieves all users
 func (r *repository) ListUsers(ctx context.Context) ([]*User, error) {
 	rows, err := r.db.Pool().Query(ctx,
-		"SELECT id, first_name, last_name, email FROM users ORDER BY id",
+		`SELECT u.id, u.first_name, u.last_name, u.email, u.is_active, u.is_blocked, 
+		        u.blocked_at, u.blocked_by, u.created_at, u.updated_at, u.deleted_at, ro.name as role
+		 FROM users u
+		 JOIN roles ro ON u.role_id = ro.id
+		 WHERE u.deleted_at IS NULL
+		 ORDER BY u.created_at DESC`,
 	)
 	if err != nil {
 		return nil, err
@@ -60,7 +73,11 @@ func (r *repository) ListUsers(ctx context.Context) ([]*User, error) {
 	var users []*User
 	for rows.Next() {
 		user := &User{}
-		if err := rows.Scan(&user.ID, &user.FirstName, &user.LastName, &user.Email); err != nil {
+		if err := rows.Scan(
+			&user.ID, &user.FirstName, &user.LastName, &user.Email,
+			&user.IsActive, &user.IsBlocked, &user.BlockedAt, &user.BlockedBy,
+			&user.CreatedAt, &user.UpdatedAt, &user.DeletedAt, &user.Role,
+		); err != nil {
 			return nil, err
 		}
 		users = append(users, user)

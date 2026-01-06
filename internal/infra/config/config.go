@@ -33,9 +33,13 @@ type CacheConfig struct {
 }
 
 type AuthConfig struct {
-	JWTSecret string
-	JWTIssuer string
-	Audience  []string
+	JWTSecret                string
+	JWTIssuer                string
+	Audience                 []string
+	AccessTokenLifetime      time.Duration
+	RefreshTokenLifetime     time.Duration
+	StaySignedInLifetime     time.Duration
+	PasswordResetOTPLifetime time.Duration
 }
 
 type Config struct {
@@ -137,14 +141,18 @@ func loadCacheConfig() CacheConfig {
 
 func loadAuthConfig() AuthConfig {
 	cfg := AuthConfig{
-		JWTSecret: mustGetEnv("JWT_SECRET"),
-		JWTIssuer: getEnv("JWT_ISSUER", "myapp"),
+		JWTSecret:                mustGetEnv("JWT_SECRET"),
+		JWTIssuer:                getEnv("JWT_ISSUER", "go-rest-api-poc"),
+		AccessTokenLifetime:      getEnvAsDuration("ACCESS_TOKEN_LIFETIME", 15*time.Minute),
+		RefreshTokenLifetime:     getEnvAsDuration("REFRESH_TOKEN_LIFETIME", 168*time.Hour),      // 7 days
+		StaySignedInLifetime:     getEnvAsDuration("STAY_SIGNED_IN_LIFETIME", 720*time.Hour),     // 30 days
+		PasswordResetOTPLifetime: getEnvAsDuration("PASSWORD_RESET_OTP_LIFETIME", 15*time.Minute),
 	}
 
 	if aud, ok := os.LookupEnv("JWT_AUDIENCE"); ok {
 		cfg.Audience = strings.Split(aud, ",")
 	} else {
-		cfg.Audience = []string{"myapp"}
+		cfg.Audience = []string{"go-rest-api-poc"}
 	}
 
 	return cfg

@@ -8,6 +8,12 @@ type User struct {
 	FirstName string     `json:"first_name"`
 	LastName  string     `json:"last_name"`
 	Email     string     `json:"email"`
+	Password  string     `json:"-"` // Never expose password in JSON
+	Role      string     `json:"role"`
+	IsActive  bool       `json:"is_active"`
+	IsBlocked bool       `json:"is_blocked"`
+	BlockedAt *time.Time `json:"blocked_at,omitempty"`
+	BlockedBy *string    `json:"blocked_by,omitempty"`
 	CreatedBy *string    `json:"created_by,omitempty"`
 	CreatedAt time.Time  `json:"created_at"`
 	UpdatedBy *string    `json:"updated_by,omitempty"`

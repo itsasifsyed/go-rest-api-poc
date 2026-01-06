@@ -3,6 +3,7 @@ package router
 import (
 	"net/http"
 	"rest_api_poc/internal/di"
+	"rest_api_poc/internal/domain/auth"
 	"rest_api_poc/internal/domain/health"
 	"rest_api_poc/internal/domain/product"
 	"rest_api_poc/internal/domain/user"
@@ -17,18 +18,22 @@ func SetupRouter(container *di.Container) http.Handler {
 	r := chi.NewRouter()
 
 	// Register routes for each service module
-	// Health check routes
+	// Health check routes (public)
 	health.RegisterRoutes(r, container.HealthHandler)
 
-	// Product routes
-	product.RegisterRoutes(r, container.ProductHandler)
+	// Auth routes (public + protected)
+	auth.RegisterRoutes(r, container.AuthModule.Handler, container.AuthMiddleware, container.RoleMiddleware)
 
-	// User routes
-	user.RegisterRoutes(r, container.UserHandler)
+	// Protected routes (require authentication)
+	r.Group(func(r chi.Router) {
+		r.Use(container.AuthMiddleware.Authenticate)
 
-	// Future modules can be added here:
-	// authHandler := container.AuthModule()
-	// auth.RegisterRoutes(r, authHandler)
+		// Product routes (read: all users, write: admin/owner only)
+		product.RegisterRoutes(r, container.ProductHandler, container.RoleMiddleware)
+
+		// User routes
+		user.RegisterRoutes(r, container.UserHandler)
+	})
 
 	return r
 }

@@ -23,3 +23,13 @@ func WriteJson(w http.ResponseWriter, statusCode int, payload any) {
 func WriteStatus(w http.ResponseWriter, status int) {
 	w.WriteHeader(status)
 }
+
+// RespondWithJSON writes JSON response (alias for WriteJson for consistency)
+func RespondWithJSON(w http.ResponseWriter, statusCode int, payload any) {
+	WriteJson(w, statusCode, payload)
+}
+
+// RespondWithError writes error response in JSON format
+func RespondWithError(w http.ResponseWriter, statusCode int, message string) {
+	WriteJson(w, statusCode, map[string]string{"error": message})
+}
