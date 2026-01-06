@@ -16,6 +16,14 @@ type Handler struct {
 	config  *config.Config
 }
 
+func mapLoginError(err error) error {
+	// Never leak account state. Treat all login denials as invalid credentials.
+	if errors.Is(err, ErrInvalidCredentials) || errors.Is(err, ErrUserNotActive) || errors.Is(err, ErrUserBlocked) {
+		return appError.Authentication("Invalid email or password", err)
+	}
+	return appError.Internal(err)
+}
+
 func NewHandler(service *Service, cfg *config.Config) *Handler {
 	return &Handler{
 		service: service,
@@ -42,16 +50,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) error {
 	// Login
 	response, accessToken, refreshToken, err := h.service.Login(r.Context(), &req, r)
 	if err != nil {
-		if errors.Is(err, ErrInvalidCredentials) {
-			return appError.Authentication("Invalid email or password", err)
-		}
-		if errors.Is(err, ErrUserNotActive) {
-			return appError.Authorization("User account is not active", err)
-		}
-		if errors.Is(err, ErrUserBlocked) {
-			return appError.Authorization("User account has been blocked", err)
-		}
-		return appError.Internal(err)
+		return mapLoginError(err)
 	}
 
 	// Set cookies
@@ -103,7 +102,8 @@ func (h *Handler) RequestPasswordReset(w http.ResponseWriter, r *http.Request) e
 	}
 
 	if err := h.service.RequestPasswordReset(r.Context(), req.Email); err != nil {
-		return appError.Internal(err)
+		// Intentionally do not error to avoid leaking system state; log internally.
+		httpUtils.LogOnly(r, appError.Internal(err))
 	}
 
 	httpUtils.RespondWithJSON(w, http.StatusOK, map[string]string{
@@ -158,16 +158,21 @@ func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	if refreshToken == "" {
-		return appError.Authentication("Refresh token is required", nil)
+		return appError.Authentication("Invalid session", nil)
 	}
 
 	// Refresh tokens
 	newAccessToken, newRefreshToken, err := h.service.Refresh(r.Context(), refreshToken)
 	if err != nil {
-		if errors.Is(err, ErrExpiredToken) {
-			return appError.Authentication("Refresh token has expired", err)
-		}
-		if errors.Is(err, ErrSessionNotFound) || errors.Is(err, ErrSessionInactive) || errors.Is(err, ErrSessionExpired) {
+		// Never leak refresh failure reasons.
+		if errors.Is(err, ErrExpiredToken) ||
+			errors.Is(err, ErrInvalidToken) ||
+			errors.Is(err, ErrInvalidSignature) ||
+			errors.Is(err, ErrSessionNotFound) ||
+			errors.Is(err, ErrSessionInactive) ||
+			errors.Is(err, ErrSessionExpired) ||
+			errors.Is(err, ErrUserBlocked) ||
+			errors.Is(err, ErrUserNotActive) {
 			return appError.Authentication("Invalid session", err)
 		}
 		return appError.Internal(err)

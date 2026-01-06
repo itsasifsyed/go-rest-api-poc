@@ -10,6 +10,8 @@ import (
 	"rest_api_poc/internal/shared/logger"
 	"strings"
 	"time"
+
+	"github.com/jackc/pgx/v5"
 )
 
 var (
@@ -54,23 +56,27 @@ func (s *Service) Login(ctx context.Context, req *LoginRequest, r *http.Request)
 	// Get user by email
 	user, err := s.repo.GetUserByEmail(ctx, req.Email)
 	if err != nil {
-		logger.Warn("Login failed: user not found for email %s", req.Email)
-		return nil, "", "", ErrInvalidCredentials
+		// Distinguish \"not found\" vs system failure.
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, "", "", ErrInvalidCredentials
+		}
+		return nil, "", "", fmt.Errorf("get user by email: %w", err)
 	}
 
 	// Check if user is active
 	if !user.IsActive {
-		return nil, "", "", ErrUserNotActive
+		// Never leak account state to callers; treat as invalid credentials.
+		return nil, "", "", ErrInvalidCredentials
 	}
 
 	// Check if user is blocked
 	if user.IsBlocked {
-		return nil, "", "", ErrUserBlocked
+		// Never leak account state to callers; treat as invalid credentials.
+		return nil, "", "", ErrInvalidCredentials
 	}
 
 	// Compare password
 	if err := ComparePassword(user.Password, req.Password); err != nil {
-		logger.Warn("Login failed: invalid password for email %s", req.Email)
 		return nil, "", "", ErrInvalidCredentials
 	}
 
@@ -81,12 +87,10 @@ func (s *Service) Login(ctx context.Context, req *LoginRequest, r *http.Request)
 	}
 
 	// Create session
-	session, accessToken, refreshToken, err := s.createSession(ctx, user, r, refreshLifetime)
+	_, accessToken, refreshToken, err := s.createSession(ctx, user, r, refreshLifetime)
 	if err != nil {
 		return nil, "", "", fmt.Errorf("failed to create session: %w", err)
 	}
-
-	logger.Info("User %s logged in successfully (session: %s)", user.Email, session.ID)
 
 	// Build response
 	response := &LoginResponse{
@@ -241,7 +245,6 @@ func (s *Service) RequestPasswordReset(ctx context.Context, email string) error 
 	user, err := s.repo.GetUserByEmail(ctx, email)
 	if err != nil {
 		// Don't reveal if email exists or not
-		logger.Warn("Password reset requested for non-existent email: %s", email)
 		return nil
 	}
 
@@ -308,7 +311,8 @@ func (s *Service) VerifyPasswordReset(ctx context.Context, req *PasswordResetVer
 
 	// Invalidate all sessions for security
 	if err := s.repo.InvalidateAllUserSessions(ctx, token.UserID); err != nil {
-		logger.Warn("Failed to invalidate sessions after password reset: %v", err)
+		// Best-effort cleanup; still worth surfacing upstream for centralized logging.
+		return fmt.Errorf("failed to invalidate sessions after password reset: %w", err)
 	}
 
 	logger.Info("Password reset successfully for user %s", req.Email)

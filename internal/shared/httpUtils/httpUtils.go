@@ -56,6 +56,18 @@ func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 	})
 }
 
+// LogOnly logs an error with the same structured fields as WriteError, but does not write a response.
+// Useful for endpoints that intentionally return a fixed status/body to avoid leaking information.
+func LogOnly(r *http.Request, err error) {
+	if err == nil {
+		return
+	}
+	ae := appError.From(err)
+	userID, sessionID := extractUserContext(r)
+	ip := ExtractIPAddress(r)
+	logError(ae, r, userID, sessionID, ip)
+}
+
 func logError(ae appError.AppError, r *http.Request, userID, sessionID, ipAddress string) {
 	logMsg := "Error: %s | Method: %s | Path: %s | User: %s | Session: %s | IP: %s | Internal: %s"
 

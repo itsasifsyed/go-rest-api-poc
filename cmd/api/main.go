@@ -29,9 +29,6 @@ func main() {
 }
 
 /*
-	3. API endpoints to CRUD persons with request validations and versioning
-	4. Login mechanism with JWT token, check in headers and also for token
-	5. Permission check to perform Write operations on persons api using a middleware
 	6. Error middleware to handle error globally
 	7. Error classes and different types of errors
 	8. Logging middleware
