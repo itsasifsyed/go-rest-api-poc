@@ -15,7 +15,7 @@ type Module struct {
 }
 
 // NewModule creates a new auth module with all dependencies
-func NewModule(db *pgxpool.Pool, cfg *config.Config) *Module {
+func NewModule(db *pgxpool.Pool, cfg *config.Config, cache AuthCache) *Module {
 	// Create repository
 	repo := NewRepository(db)
 
@@ -29,7 +29,7 @@ func NewModule(db *pgxpool.Pool, cfg *config.Config) *Module {
 	)
 
 	// Create service
-	service := NewService(repo, cfg)
+	service := NewService(repo, cfg, cache, cfg.Cache.TTL)
 
 	// Create handler
 	handler := NewHandler(service, cfg)

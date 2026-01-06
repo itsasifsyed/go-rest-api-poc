@@ -12,6 +12,13 @@
 Add these to your `.env` file:
 
 ```bash
+# Web
+ENV=dev
+WEB_PORT=8080
+
+# DB (REQUIRED)
+DB_CONNECTION_STRING=postgres://USER:PASSWORD@localhost:5433/DBNAME?sslmode=disable
+
 # JWT Authentication (REQUIRED)
 JWT_SECRET=your-super-secret-key-change-in-production-min-32-chars
 JWT_ISSUER=go-rest-api-poc
@@ -20,6 +27,13 @@ ACCESS_TOKEN_LIFETIME=15m
 REFRESH_TOKEN_LIFETIME=168h
 STAY_SIGNED_IN_LIFETIME=720h
 PASSWORD_RESET_OTP_LIFETIME=15m
+
+# Redis cache (optional, recommended for prod-like auth performance)
+ENABLE_CACHE=true
+REDIS_ADDRESS=localhost:6379
+REDIS_PASSWORD=
+REDIS_DB=0
+REDIS_TTL=1h
 ```
 
 ### 2. Run Database Migrations

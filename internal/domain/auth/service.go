@@ -29,9 +29,11 @@ type Service struct {
 	repo       *Repository
 	jwtService *JWTService
 	config     *config.Config
+	cache      AuthCache
+	cacheTTL   time.Duration
 }
 
-func NewService(repo *Repository, cfg *config.Config) *Service {
+func NewService(repo *Repository, cfg *config.Config, cache AuthCache, cacheTTL time.Duration) *Service {
 	jwtService := NewJWTService(
 		cfg.Auth.JWTSecret,
 		cfg.Auth.JWTIssuer,
@@ -44,6 +46,8 @@ func NewService(repo *Repository, cfg *config.Config) *Service {
 		repo:       repo,
 		jwtService: jwtService,
 		config:     cfg,
+		cache:      cache,
+		cacheTTL:   cacheTTL,
 	}
 }
 
@@ -220,6 +224,7 @@ func (s *Service) Logout(ctx context.Context, sessionID string) error {
 	if err := s.repo.InvalidateSession(ctx, sessionID); err != nil {
 		return fmt.Errorf("failed to logout: %w", err)
 	}
+	s.cacheDelSession(ctx, sessionID)
 
 	logger.Info("Session %s logged out", sessionID)
 	return nil
@@ -227,9 +232,18 @@ func (s *Service) Logout(ctx context.Context, sessionID string) error {
 
 // LogoutAll invalidates all sessions for a user
 func (s *Service) LogoutAll(ctx context.Context, userID string) error {
+	sessionIDs, err := s.repo.GetActiveSessionIDsByUserID(ctx, userID)
+	if err != nil {
+		// Best-effort. DB remains source of truth.
+		logger.Warn("failed to get active session ids for cache invalidation: %v", err)
+	}
 	if err := s.repo.InvalidateAllUserSessions(ctx, userID); err != nil {
 		return fmt.Errorf("failed to logout all sessions: %w", err)
 	}
+	for _, sid := range sessionIDs {
+		s.cacheDelSession(ctx, sid)
+	}
+	s.cacheDelUser(ctx, userID)
 
 	logger.Info("All sessions logged out for user %s", userID)
 	return nil
@@ -292,6 +306,10 @@ func (s *Service) VerifyPasswordReset(ctx context.Context, req *PasswordResetVer
 	if err != nil {
 		return ErrInvalidOTP
 	}
+	sessionIDs, err := s.repo.GetActiveSessionIDsByUserID(ctx, token.UserID)
+	if err != nil {
+		logger.Warn("failed to get active session ids for cache invalidation: %v", err)
+	}
 
 	// Hash new password
 	hashedPassword, err := HashPassword(req.NewPassword)
@@ -314,6 +332,10 @@ func (s *Service) VerifyPasswordReset(ctx context.Context, req *PasswordResetVer
 		// Best-effort cleanup; still worth surfacing upstream for centralized logging.
 		return fmt.Errorf("failed to invalidate sessions after password reset: %w", err)
 	}
+	for _, sid := range sessionIDs {
+		s.cacheDelSession(ctx, sid)
+	}
+	s.cacheDelUser(ctx, token.UserID)
 
 	logger.Info("Password reset successfully for user %s", req.Email)
 
@@ -375,6 +397,10 @@ func (s *Service) GetMe(ctx context.Context, userID string) (*UserResponse, erro
 
 // BlockUser blocks a user and invalidates all their sessions
 func (s *Service) BlockUser(ctx context.Context, userID, blockedBy string) error {
+	sessionIDs, err := s.repo.GetActiveSessionIDsByUserID(ctx, userID)
+	if err != nil {
+		logger.Warn("failed to get active session ids for cache invalidation: %v", err)
+	}
 	// Block user
 	if err := s.repo.BlockUser(ctx, userID, blockedBy); err != nil {
 		return fmt.Errorf("failed to block user: %w", err)
@@ -384,6 +410,10 @@ func (s *Service) BlockUser(ctx context.Context, userID, blockedBy string) error
 	if err := s.repo.InvalidateAllUserSessions(ctx, userID); err != nil {
 		return fmt.Errorf("failed to invalidate sessions: %w", err)
 	}
+	for _, sid := range sessionIDs {
+		s.cacheDelSession(ctx, sid)
+	}
+	s.cacheDelUser(ctx, userID)
 
 	logger.Info("User %s blocked by %s", userID, blockedBy)
 
@@ -395,6 +425,7 @@ func (s *Service) UnblockUser(ctx context.Context, userID string) error {
 	if err := s.repo.UnblockUser(ctx, userID); err != nil {
 		return fmt.Errorf("failed to unblock user: %w", err)
 	}
+	s.cacheDelUser(ctx, userID)
 
 	logger.Info("User %s unblocked", userID)
 
@@ -444,6 +475,7 @@ func (s *Service) DeleteSession(ctx context.Context, sessionID, userID string) e
 	if err := s.repo.InvalidateSession(ctx, sessionID); err != nil {
 		return fmt.Errorf("failed to delete session: %w", err)
 	}
+	s.cacheDelSession(ctx, sessionID)
 
 	logger.Info("Session %s deleted by user %s", sessionID, userID)
 
@@ -508,7 +540,44 @@ func (s *Service) createSession(ctx context.Context, user *UserWithAuth, r *http
 		return nil, "", "", fmt.Errorf("failed to update session: %w", err)
 	}
 
+	// Cache session/user for faster auth checks (best-effort)
+	if s.cache != nil {
+		ttl := s.cacheTTL
+		if until := time.Until(session.ExpiresAt); until > 0 && until < ttl {
+			ttl = until
+		}
+		_ = s.cache.SetSession(ctx, session.ID, &CachedSession{
+			UserID:    user.ID,
+			IsActive:  true,
+			ExpiresAt: session.ExpiresAt,
+		}, ttl)
+		_ = s.cache.SetUser(ctx, user.ID, &CachedUser{
+			Email:     user.Email,
+			Role:      user.Role,
+			IsActive:  user.IsActive,
+			IsBlocked: user.IsBlocked,
+		}, s.cacheTTL)
+	}
+
 	return session, accessToken, refreshToken, nil
+}
+
+func (s *Service) cacheDelSession(ctx context.Context, sessionID string) {
+	if s.cache == nil || sessionID == "" {
+		return
+	}
+	if err := s.cache.DelSession(ctx, sessionID); err != nil {
+		logger.Warn("auth cache del session failed: %v", err)
+	}
+}
+
+func (s *Service) cacheDelUser(ctx context.Context, userID string) {
+	if s.cache == nil || userID == "" {
+		return
+	}
+	if err := s.cache.DelUser(ctx, userID); err != nil {
+		logger.Warn("auth cache del user failed: %v", err)
+	}
 }
 
 // parseDeviceInfo extracts device information from request

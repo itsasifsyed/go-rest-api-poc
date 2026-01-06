@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"rest_api_poc/internal/di"
 	"rest_api_poc/internal/infra"
+	infraCache "rest_api_poc/internal/infra/cache"
 	"rest_api_poc/internal/infra/config"
 	"rest_api_poc/internal/infra/db"
 	"rest_api_poc/internal/shared/logger"
@@ -26,9 +27,12 @@ func main() {
 	// Init DB with retry mechanism and graceful shutdown
 	database, dbDispose := db.SetupDB(ctx, &cfg.DB, cfg.WebServer.Env)
 
+	// Optional caches (Redis, etc). Best-effort: DB remains the source of truth.
+	cacheBundle := infraCache.NewBundle(&cfg.Cache)
+
 	// Create dependency container
 	// Simple, explicit dependency injection - no magic, easy to understand
-	container := di.NewContainer(database, cfg)
+	container := di.NewContainer(database, cfg, cacheBundle)
 
 	// Start server (non-blocking) and wait for signal or server error
 	webDispose, serverErrCh := infra.StartServer(container)
@@ -53,15 +57,15 @@ func main() {
 	if err := webDispose(shutdownCtx); err != nil {
 		logger.Error("Server shutdown error: %v", err)
 	}
+	if err := cacheBundle.Close(shutdownCtx); err != nil {
+		logger.Error("Cache shutdown error: %v", err)
+	}
 	if err := dbDispose(shutdownCtx); err != nil {
 		logger.Error("Database shutdown error: %v", err)
 	}
 }
 
 /*
-	10. CORS Middleware
-	11. Combine all necessary middlewares into one
 	12. Internationalization
 	13. Swagger docs
-	Reduce per-request DB hits in auth middleware (join query, caching, or session store).
 */

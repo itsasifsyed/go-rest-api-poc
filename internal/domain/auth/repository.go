@@ -17,6 +17,34 @@ func NewRepository(db *pgxpool.Pool) *Repository {
 	return &Repository{db: db}
 }
 
+// GetActiveSessionIDsByUserID returns active session IDs for a user.
+// Used for cache invalidation and should be treated as best-effort.
+func (r *Repository) GetActiveSessionIDsByUserID(ctx context.Context, userID string) ([]string, error) {
+	query := `
+		SELECT id
+		FROM user_sessions
+		WHERE user_id = $1 AND is_active = true
+	`
+	rows, err := r.db.Query(ctx, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query session ids: %w", err)
+	}
+	defer rows.Close()
+
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("failed to scan session id: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("session ids rows: %w", err)
+	}
+	return ids, nil
+}
+
 // -------------------------
 // User Auth Queries
 // -------------------------
