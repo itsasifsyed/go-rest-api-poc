@@ -5,8 +5,8 @@ import (
 	"errors"
 	"net/http"
 	"rest_api_poc/internal/infra/config"
+	"rest_api_poc/internal/shared/appError"
 	"rest_api_poc/internal/shared/httpUtils"
-	"rest_api_poc/internal/shared/logger"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -28,37 +28,30 @@ func NewHandler(service *Service, cfg *config.Config) *Handler {
 // -------------------------
 
 // Login handles user login
-func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Login(w http.ResponseWriter, r *http.Request) error {
 	var req LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpUtils.RespondWithError(w, http.StatusBadRequest, "Invalid request body")
-		return
+		return appError.Validation("Invalid request body", err)
 	}
 
 	// Validate request
 	if req.Email == "" || req.Password == "" {
-		httpUtils.RespondWithError(w, http.StatusBadRequest, "Email and password are required")
-		return
+		return appError.Validation("Email and password are required", nil)
 	}
 
 	// Login
 	response, accessToken, refreshToken, err := h.service.Login(r.Context(), &req, r)
 	if err != nil {
 		if errors.Is(err, ErrInvalidCredentials) {
-			httpUtils.RespondWithError(w, http.StatusUnauthorized, "Invalid email or password")
-			return
+			return appError.Authentication("Invalid email or password", err)
 		}
 		if errors.Is(err, ErrUserNotActive) {
-			httpUtils.RespondWithError(w, http.StatusForbidden, "User account is not active")
-			return
+			return appError.Authorization("User account is not active", err)
 		}
 		if errors.Is(err, ErrUserBlocked) {
-			httpUtils.RespondWithError(w, http.StatusForbidden, "User account has been blocked")
-			return
+			return appError.Authorization("User account has been blocked", err)
 		}
-		logger.Error("Login error: %v", err)
-		httpUtils.RespondWithError(w, http.StatusInternalServerError, "Failed to login")
-		return
+		return appError.Internal(err)
 	}
 
 	// Set cookies
@@ -70,87 +63,77 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	response.RefreshToken = refreshToken
 
 	httpUtils.RespondWithJSON(w, http.StatusOK, response)
+	return nil
 }
 
 // Register handles user registration
-func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Register(w http.ResponseWriter, r *http.Request) error {
 	var req RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpUtils.RespondWithError(w, http.StatusBadRequest, "Invalid request body")
-		return
+		return appError.Validation("Invalid request body", err)
 	}
 
 	// Validate request
 	if req.Email == "" || req.Password == "" || req.FirstName == "" || req.LastName == "" {
-		httpUtils.RespondWithError(w, http.StatusBadRequest, "All fields are required")
-		return
+		return appError.Validation("All fields are required", nil)
 	}
 
 	// Register
 	user, err := h.service.Register(r.Context(), &req)
 	if err != nil {
 		if errors.Is(err, ErrEmailAlreadyExists) {
-			httpUtils.RespondWithError(w, http.StatusConflict, "Email already exists")
-			return
+			return appError.Conflict("Email already exists", err)
 		}
-		logger.Error("Registration error: %v", err)
-		httpUtils.RespondWithError(w, http.StatusInternalServerError, "Failed to register")
-		return
+		return appError.Internal(err)
 	}
 
 	httpUtils.RespondWithJSON(w, http.StatusCreated, user)
+	return nil
 }
 
 // RequestPasswordReset handles password reset request
-func (h *Handler) RequestPasswordReset(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) RequestPasswordReset(w http.ResponseWriter, r *http.Request) error {
 	var req PasswordResetRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpUtils.RespondWithError(w, http.StatusBadRequest, "Invalid request body")
-		return
+		return appError.Validation("Invalid request body", err)
 	}
 
 	if req.Email == "" {
-		httpUtils.RespondWithError(w, http.StatusBadRequest, "Email is required")
-		return
+		return appError.Validation("Email is required", nil)
 	}
 
 	if err := h.service.RequestPasswordReset(r.Context(), req.Email); err != nil {
-		logger.Error("Password reset request error: %v", err)
-		httpUtils.RespondWithError(w, http.StatusInternalServerError, "Failed to process password reset request")
-		return
+		return appError.Internal(err)
 	}
 
 	httpUtils.RespondWithJSON(w, http.StatusOK, map[string]string{
 		"message": "If the email exists, a password reset OTP has been sent",
 	})
+	return nil
 }
 
 // VerifyPasswordReset handles password reset verification
-func (h *Handler) VerifyPasswordReset(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) VerifyPasswordReset(w http.ResponseWriter, r *http.Request) error {
 	var req PasswordResetVerifyRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpUtils.RespondWithError(w, http.StatusBadRequest, "Invalid request body")
-		return
+		return appError.Validation("Invalid request body", err)
 	}
 
 	if req.Email == "" || req.OTP == "" || req.NewPassword == "" {
-		httpUtils.RespondWithError(w, http.StatusBadRequest, "Email, OTP, and new password are required")
-		return
+		return appError.Validation("Email, OTP, and new password are required", nil)
 	}
 
 	if err := h.service.VerifyPasswordReset(r.Context(), &req); err != nil {
 		if errors.Is(err, ErrInvalidOTP) {
-			httpUtils.RespondWithError(w, http.StatusBadRequest, "Invalid or expired OTP")
-			return
+			return appError.Validation("Invalid or expired OTP", err)
 		}
-		logger.Error("Password reset verification error: %v", err)
-		httpUtils.RespondWithError(w, http.StatusInternalServerError, "Failed to reset password")
-		return
+		return appError.Internal(err)
 	}
 
 	httpUtils.RespondWithJSON(w, http.StatusOK, map[string]string{
 		"message": "Password reset successfully",
 	})
+	return nil
 }
 
 // -------------------------
@@ -158,7 +141,7 @@ func (h *Handler) VerifyPasswordReset(w http.ResponseWriter, r *http.Request) {
 // -------------------------
 
 // Refresh handles token refresh
-func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) error {
 	// Try to get refresh token from cookie first
 	refreshToken := ""
 	cookie, err := r.Cookie("refresh_token")
@@ -175,24 +158,19 @@ func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if refreshToken == "" {
-		httpUtils.RespondWithError(w, http.StatusUnauthorized, "Refresh token is required")
-		return
+		return appError.Authentication("Refresh token is required", nil)
 	}
 
 	// Refresh tokens
 	newAccessToken, newRefreshToken, err := h.service.Refresh(r.Context(), refreshToken)
 	if err != nil {
 		if errors.Is(err, ErrExpiredToken) {
-			httpUtils.RespondWithError(w, http.StatusUnauthorized, "Refresh token has expired")
-			return
+			return appError.Authentication("Refresh token has expired", err)
 		}
-		if errors.Is(err, ErrSessionNotFound) || errors.Is(err, ErrSessionInactive) {
-			httpUtils.RespondWithError(w, http.StatusUnauthorized, "Invalid session")
-			return
+		if errors.Is(err, ErrSessionNotFound) || errors.Is(err, ErrSessionInactive) || errors.Is(err, ErrSessionExpired) {
+			return appError.Authentication("Invalid session", err)
 		}
-		logger.Error("Token refresh error: %v", err)
-		httpUtils.RespondWithError(w, http.StatusInternalServerError, "Failed to refresh token")
-		return
+		return appError.Internal(err)
 	}
 
 	// Set new cookies
@@ -204,20 +182,18 @@ func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 		"access_token":  newAccessToken,
 		"refresh_token": newRefreshToken,
 	})
+	return nil
 }
 
 // Logout handles user logout
-func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) error {
 	userCtx := getUserContext(r)
 	if userCtx == nil {
-		httpUtils.RespondWithError(w, http.StatusUnauthorized, "Unauthorized")
-		return
+		return appError.Authentication("Unauthorized", nil)
 	}
 
 	if err := h.service.Logout(r.Context(), userCtx.SessionID); err != nil {
-		logger.Error("Logout error: %v", err)
-		httpUtils.RespondWithError(w, http.StatusInternalServerError, "Failed to logout")
-		return
+		return appError.Internal(err)
 	}
 
 	// Clear cookies
@@ -226,20 +202,18 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	httpUtils.RespondWithJSON(w, http.StatusOK, map[string]string{
 		"message": "Logged out successfully",
 	})
+	return nil
 }
 
 // LogoutAll handles logout from all devices
-func (h *Handler) LogoutAll(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) LogoutAll(w http.ResponseWriter, r *http.Request) error {
 	userCtx := getUserContext(r)
 	if userCtx == nil {
-		httpUtils.RespondWithError(w, http.StatusUnauthorized, "Unauthorized")
-		return
+		return appError.Authentication("Unauthorized", nil)
 	}
 
 	if err := h.service.LogoutAll(r.Context(), userCtx.ID); err != nil {
-		logger.Error("Logout all error: %v", err)
-		httpUtils.RespondWithError(w, http.StatusInternalServerError, "Failed to logout from all devices")
-		return
+		return appError.Internal(err)
 	}
 
 	// Clear cookies
@@ -248,105 +222,96 @@ func (h *Handler) LogoutAll(w http.ResponseWriter, r *http.Request) {
 	httpUtils.RespondWithJSON(w, http.StatusOK, map[string]string{
 		"message": "Logged out from all devices successfully",
 	})
+	return nil
 }
 
 // GetMe returns current user information
-func (h *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetMe(w http.ResponseWriter, r *http.Request) error {
 	userCtx := getUserContext(r)
 	if userCtx == nil {
-		httpUtils.RespondWithError(w, http.StatusUnauthorized, "Unauthorized")
-		return
+		return appError.Authentication("Unauthorized", nil)
 	}
 
 	user, err := h.service.GetMe(r.Context(), userCtx.ID)
 	if err != nil {
-		logger.Error("Get me error: %v", err)
-		httpUtils.RespondWithError(w, http.StatusInternalServerError, "Failed to get user information")
-		return
+		return appError.Internal(err)
 	}
 
 	httpUtils.RespondWithJSON(w, http.StatusOK, user)
+	return nil
 }
 
 // ChangePassword handles password change
-func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) error {
 	userCtx := getUserContext(r)
 	if userCtx == nil {
-		httpUtils.RespondWithError(w, http.StatusUnauthorized, "Unauthorized")
-		return
+		return appError.Authentication("Unauthorized", nil)
 	}
 
 	var req ChangePasswordRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpUtils.RespondWithError(w, http.StatusBadRequest, "Invalid request body")
-		return
+		return appError.Validation("Invalid request body", err)
 	}
 
 	if req.CurrentPassword == "" || req.NewPassword == "" {
-		httpUtils.RespondWithError(w, http.StatusBadRequest, "Current password and new password are required")
-		return
+		return appError.Validation("Current password and new password are required", nil)
 	}
 
 	if err := h.service.ChangePassword(r.Context(), userCtx.ID, &req); err != nil {
 		if errors.Is(err, ErrInvalidCredentials) {
-			httpUtils.RespondWithError(w, http.StatusUnauthorized, "Current password is incorrect")
-			return
+			return appError.Authentication("Current password is incorrect", err)
 		}
-		logger.Error("Change password error: %v", err)
-		httpUtils.RespondWithError(w, http.StatusInternalServerError, "Failed to change password")
-		return
+		return appError.Internal(err)
 	}
 
 	httpUtils.RespondWithJSON(w, http.StatusOK, map[string]string{
 		"message": "Password changed successfully",
 	})
+	return nil
 }
 
 // GetSessions returns all active sessions for current user
-func (h *Handler) GetSessions(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetSessions(w http.ResponseWriter, r *http.Request) error {
 	userCtx := getUserContext(r)
 	if userCtx == nil {
-		httpUtils.RespondWithError(w, http.StatusUnauthorized, "Unauthorized")
-		return
+		return appError.Authentication("Unauthorized", nil)
 	}
 
 	sessions, err := h.service.GetUserSessions(r.Context(), userCtx.ID, userCtx.SessionID)
 	if err != nil {
-		logger.Error("Get sessions error: %v", err)
-		httpUtils.RespondWithError(w, http.StatusInternalServerError, "Failed to get sessions")
-		return
+		return appError.Internal(err)
 	}
 
 	httpUtils.RespondWithJSON(w, http.StatusOK, sessions)
+	return nil
 }
 
 // DeleteSession handles session deletion
-func (h *Handler) DeleteSession(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) DeleteSession(w http.ResponseWriter, r *http.Request) error {
 	userCtx := getUserContext(r)
 	if userCtx == nil {
-		httpUtils.RespondWithError(w, http.StatusUnauthorized, "Unauthorized")
-		return
+		return appError.Authentication("Unauthorized", nil)
 	}
 
 	sessionID := chi.URLParam(r, "id")
 	if sessionID == "" {
-		httpUtils.RespondWithError(w, http.StatusBadRequest, "Session ID is required")
-		return
+		return appError.Validation("Session ID is required", nil)
 	}
 
 	if err := h.service.DeleteSession(r.Context(), sessionID, userCtx.ID); err != nil {
 		if errors.Is(err, ErrSessionNotFound) {
-			httpUtils.RespondWithError(w, http.StatusNotFound, "Session not found")
-			return
+			return appError.NotFound("Session not found", err)
 		}
-		logger.Error("Delete session error: %v", err)
-		httpUtils.RespondWithError(w, http.StatusInternalServerError, "Failed to delete session")
-		return
+		if err.Error() == "unauthorized to delete this session" {
+			return appError.Authorization("Insufficient permissions", err)
+		}
+		return appError.Internal(err)
 	}
 
 	httpUtils.RespondWithJSON(w, http.StatusOK, map[string]string{
 		"message": "Session deleted successfully",
 	})
+	return nil
 }
 
 // -------------------------
@@ -354,78 +319,69 @@ func (h *Handler) DeleteSession(w http.ResponseWriter, r *http.Request) {
 // -------------------------
 
 // BlockUser handles user blocking
-func (h *Handler) BlockUser(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) BlockUser(w http.ResponseWriter, r *http.Request) error {
 	userCtx := getUserContext(r)
 	if userCtx == nil {
-		httpUtils.RespondWithError(w, http.StatusUnauthorized, "Unauthorized")
-		return
+		return appError.Authentication("Unauthorized", nil)
 	}
 
 	targetUserID := chi.URLParam(r, "id")
 	if targetUserID == "" {
-		httpUtils.RespondWithError(w, http.StatusBadRequest, "User ID is required")
-		return
+		return appError.Validation("User ID is required", nil)
 	}
 
 	if err := h.service.BlockUser(r.Context(), targetUserID, userCtx.ID); err != nil {
-		logger.Error("Block user error: %v", err)
-		httpUtils.RespondWithError(w, http.StatusInternalServerError, "Failed to block user")
-		return
+		return appError.Internal(err)
 	}
 
 	httpUtils.RespondWithJSON(w, http.StatusOK, map[string]string{
 		"message": "User blocked successfully",
 	})
+	return nil
 }
 
 // UnblockUser handles user unblocking
-func (h *Handler) UnblockUser(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) UnblockUser(w http.ResponseWriter, r *http.Request) error {
 	userCtx := getUserContext(r)
 	if userCtx == nil {
-		httpUtils.RespondWithError(w, http.StatusUnauthorized, "Unauthorized")
-		return
+		return appError.Authentication("Unauthorized", nil)
 	}
 
 	targetUserID := chi.URLParam(r, "id")
 	if targetUserID == "" {
-		httpUtils.RespondWithError(w, http.StatusBadRequest, "User ID is required")
-		return
+		return appError.Validation("User ID is required", nil)
 	}
 
 	if err := h.service.UnblockUser(r.Context(), targetUserID); err != nil {
-		logger.Error("Unblock user error: %v", err)
-		httpUtils.RespondWithError(w, http.StatusInternalServerError, "Failed to unblock user")
-		return
+		return appError.Internal(err)
 	}
 
 	httpUtils.RespondWithJSON(w, http.StatusOK, map[string]string{
 		"message": "User unblocked successfully",
 	})
+	return nil
 }
 
 // LogoutAllUserSessions handles admin logout of all sessions for a specific user
-func (h *Handler) LogoutAllUserSessions(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) LogoutAllUserSessions(w http.ResponseWriter, r *http.Request) error {
 	userCtx := getUserContext(r)
 	if userCtx == nil {
-		httpUtils.RespondWithError(w, http.StatusUnauthorized, "Unauthorized")
-		return
+		return appError.Authentication("Unauthorized", nil)
 	}
 
 	targetUserID := chi.URLParam(r, "id")
 	if targetUserID == "" {
-		httpUtils.RespondWithError(w, http.StatusBadRequest, "User ID is required")
-		return
+		return appError.Validation("User ID is required", nil)
 	}
 
 	if err := h.service.LogoutAll(r.Context(), targetUserID); err != nil {
-		logger.Error("Admin logout all sessions error: %v", err)
-		httpUtils.RespondWithError(w, http.StatusInternalServerError, "Failed to logout all user sessions")
-		return
+		return appError.Internal(err)
 	}
 
 	httpUtils.RespondWithJSON(w, http.StatusOK, map[string]string{
 		"message": "All user sessions logged out successfully",
 	})
+	return nil
 }
 
 // -------------------------

@@ -4,8 +4,8 @@ import (
 	"context"
 	"net/http"
 	"rest_api_poc/internal/domain/auth"
+	"rest_api_poc/internal/shared/appError"
 	"rest_api_poc/internal/shared/httpUtils"
-	"rest_api_poc/internal/shared/logger"
 	"strings"
 )
 
@@ -27,7 +27,7 @@ func (m *AuthMiddleware) Authenticate(next http.Handler) http.Handler {
 		// Extract token from cookie or Authorization header
 		token := m.extractToken(r)
 		if token == "" {
-			httpUtils.RespondWithError(w, http.StatusUnauthorized, "Missing authentication token")
+			httpUtils.WriteError(w, r, appError.Authentication("Missing authentication token", nil))
 			return
 		}
 
@@ -35,37 +35,35 @@ func (m *AuthMiddleware) Authenticate(next http.Handler) http.Handler {
 		claims, err := m.jwtService.ValidateAccessToken(token)
 		if err != nil {
 			if err == auth.ErrExpiredToken {
-				httpUtils.RespondWithError(w, http.StatusUnauthorized, "Token has expired")
+				httpUtils.WriteError(w, r, appError.Authentication("Token has expired", err))
 				return
 			}
-			logger.Warn("Invalid token: %v", err)
-			httpUtils.RespondWithError(w, http.StatusUnauthorized, "Invalid authentication token")
+			httpUtils.WriteError(w, r, appError.Authentication("Invalid authentication token", err))
 			return
 		}
 
 		// Verify session is active
 		session, err := m.repo.GetSessionByID(r.Context(), claims.SessionID)
 		if err != nil {
-			logger.Warn("Session not found: %s", claims.SessionID)
-			httpUtils.RespondWithError(w, http.StatusUnauthorized, "Invalid session")
+			httpUtils.WriteError(w, r, appError.Authentication("Invalid session", err))
 			return
 		}
 
 		if !session.IsActive {
-			httpUtils.RespondWithError(w, http.StatusUnauthorized, "Session is inactive")
+			httpUtils.WriteError(w, r, appError.Authentication("Invalid session", nil))
 			return
 		}
 
 		// Verify user is not blocked
 		user, err := m.repo.GetUserByID(r.Context(), claims.UserID)
 		if err != nil {
-			logger.Warn("User not found: %s", claims.UserID)
-			httpUtils.RespondWithError(w, http.StatusUnauthorized, "User not found")
+			// Avoid user enumeration; treat as invalid auth.
+			httpUtils.WriteError(w, r, appError.Authentication("Invalid authentication token", err))
 			return
 		}
 
 		if !user.IsActive || user.IsBlocked {
-			httpUtils.RespondWithError(w, http.StatusForbidden, "User account is blocked or inactive")
+			httpUtils.WriteError(w, r, appError.Authorization("User account is blocked or inactive", nil))
 			return
 		}
 
@@ -78,6 +76,11 @@ func (m *AuthMiddleware) Authenticate(next http.Handler) http.Handler {
 		}
 
 		ctx := context.WithValue(r.Context(), auth.UserContextKey, userCtx)
+		// Also set a shared minimal user context for httpUtils logging/extraction (decoupled from domain packages).
+		ctx = context.WithValue(ctx, httpUtils.UserContextKey, &httpUtils.UserContext{
+			ID:        userCtx.ID,
+			SessionID: userCtx.SessionID,
+		})
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

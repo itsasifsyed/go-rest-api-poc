@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"rest_api_poc/internal/infra/config"
+	"rest_api_poc/internal/shared/httpUtils"
 	"rest_api_poc/internal/shared/logger"
 	"strings"
 	"time"
@@ -458,7 +459,7 @@ func (s *Service) createSession(ctx context.Context, user *UserWithAuth, r *http
 	session := &Session{
 		UserID:         user.ID,
 		DeviceInfo:     deviceInfo,
-		IPAddress:      getIPAddress(r),
+		IPAddress:      httpUtils.ExtractIPAddress(r),
 		UserAgent:      r.UserAgent(),
 		IsActive:       true,
 		LastActivityAt: time.Now(),
@@ -543,26 +544,6 @@ func parseDeviceInfo(r *http.Request) map[string]interface{} {
 	}
 
 	return deviceInfo
-}
-
-// getIPAddress extracts IP address from request
-func getIPAddress(r *http.Request) string {
-	// Check X-Forwarded-For header first (if behind proxy)
-	forwarded := r.Header.Get("X-Forwarded-For")
-	if forwarded != "" {
-		// Take the first IP if multiple
-		ips := strings.Split(forwarded, ",")
-		return strings.TrimSpace(ips[0])
-	}
-
-	// Check X-Real-IP header
-	realIP := r.Header.Get("X-Real-IP")
-	if realIP != "" {
-		return realIP
-	}
-
-	// Fall back to RemoteAddr
-	return r.RemoteAddr
 }
 
 // formatDeviceName formats a human-readable device name

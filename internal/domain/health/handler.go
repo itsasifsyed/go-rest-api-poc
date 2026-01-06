@@ -2,6 +2,7 @@ package health
 
 import (
 	"net/http"
+	"rest_api_poc/internal/shared/appError"
 	"rest_api_poc/internal/shared/httpUtils"
 	"rest_api_poc/internal/shared/timeUtils"
 	"time"
@@ -24,14 +25,13 @@ func NewHandler(s Service) *Handler {
 
 var startTime = time.Now()
 
-func (h *Handler) GetHealth(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetHealth(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context() // Extract context from request
 
 	// Check health including database
 	healthCheck, err := h.service.CheckHealth(ctx)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return appError.ServiceUnavailable("Service unavailable", err)
 	}
 
 	// Build complete response
@@ -49,4 +49,5 @@ func (h *Handler) GetHealth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httpUtils.WriteJson(w, statusCode, resp)
+	return nil
 }

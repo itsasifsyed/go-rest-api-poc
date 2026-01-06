@@ -3,6 +3,7 @@ package middleware
 import (
 	"net/http"
 	"rest_api_poc/internal/domain/auth"
+	"rest_api_poc/internal/shared/appError"
 	"rest_api_poc/internal/shared/httpUtils"
 )
 
@@ -19,7 +20,7 @@ func (m *RoleMiddleware) RequireRole(allowedRoles ...string) func(http.Handler) 
 			// Get user context
 			userCtx := getUserContext(r)
 			if userCtx == nil {
-				httpUtils.RespondWithError(w, http.StatusUnauthorized, "Unauthorized")
+				httpUtils.WriteError(w, r, appError.Authentication("Unauthorized", nil))
 				return
 			}
 
@@ -33,7 +34,7 @@ func (m *RoleMiddleware) RequireRole(allowedRoles ...string) func(http.Handler) 
 			}
 
 			if !hasRole {
-				httpUtils.RespondWithError(w, http.StatusForbidden, "Insufficient permissions")
+				httpUtils.WriteError(w, r, appError.Authorization("Insufficient permissions", nil))
 				return
 			}
 
