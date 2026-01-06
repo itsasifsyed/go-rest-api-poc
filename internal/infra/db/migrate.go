@@ -19,7 +19,7 @@ var migrationsFS embed.FS
 // RunMigrations executes all pending database migrations
 // It uses golang-migrate which tracks migrations in schema_migrations table
 func RunMigrations(connectionString string) error {
-	logger.InfoBlock("Running database migrations...")
+	logger.Info("Running database migrations...")
 
 	// Open database connection using database/sql (required by golang-migrate)
 	db, err := sql.Open("pgx", connectionString)
@@ -74,7 +74,7 @@ func RunMigrations(connectionString string) error {
 	err = m.Up()
 	if err != nil {
 		if errors.Is(err, migrate.ErrNoChange) {
-			logger.Success("No new migrations to apply - database is up to date")
+			logger.Info("No new migrations to apply - database is up to date")
 			return nil
 		}
 		return fmt.Errorf("failed to run migrations: %w", err)
@@ -86,13 +86,13 @@ func RunMigrations(connectionString string) error {
 		return fmt.Errorf("failed to get new migration version: %w", err)
 	}
 
-	logger.SuccessBlock("Migrations completed successfully! Current version: %d", newVersion)
+	logger.Info("Migrations completed successfully! Current version: %d", newVersion)
 	return nil
 }
 
 // RollbackMigration rolls back the last migration (useful for development)
 func RollbackMigration(connectionString string) error {
-	logger.InfoBlock("Rolling back last migration...")
+	logger.Info("Rolling back last migration...")
 
 	db, err := sql.Open("pgx", connectionString)
 	if err != nil {
@@ -134,6 +134,6 @@ func RollbackMigration(connectionString string) error {
 		return fmt.Errorf("failed to get new migration version: %w", err)
 	}
 
-	logger.SuccessBlock("Rollback completed successfully! Current version: %d", newVersion)
+	logger.Info("Rollback completed successfully! Current version: %d", newVersion)
 	return nil
 }

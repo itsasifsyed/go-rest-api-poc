@@ -17,12 +17,12 @@ var (
 // for graceful shutdown. This function should be called from main and the returned dispose
 // function should be deferred.
 func SetupDB(ctx context.Context, cfg *config.DBConfig, environment string) (DB, func(ctx context.Context) error) {
-	logger.InfoBlock("Setting up database...")
+	logger.Info("Setting up database...")
 
 	// Initialize database with retry mechanism
 	pool, err := initDB(ctx, cfg.ConnectionString, cfg.DBRetryCount)
 	if err != nil {
-		logger.FatalBlock("Failed to initialize database: %v", err)
+		logger.Fatal("Failed to initialize database: %v", err)
 	}
 
 	// Create DB instance
@@ -35,20 +35,20 @@ func SetupDB(ctx context.Context, cfg *config.DBConfig, environment string) (DB,
 	defer cancel()
 
 	if err := dbInstance.Health(healthCtx); err != nil {
-		logger.FatalBlock("Database health check failed: %v", err)
+		logger.Fatal("Database health check failed: %v", err)
 	}
 
 	// Run database migrations
 	if err := RunMigrations(cfg.ConnectionString); err != nil {
-		logger.FatalBlock("Failed to run migrations: %v", err)
+		logger.Fatal("Failed to run migrations: %v", err)
 	}
 
 	// Run database seeds (only in non-production environments)
 	if err := RunSeeds(ctx, pool, environment); err != nil {
-		logger.FatalBlock("Failed to run seeds: %v", err)
+		logger.Fatal("Failed to run seeds: %v", err)
 	}
 
-	logger.SuccessBlock("Database setup completed successfully")
+	logger.Info("Database setup completed successfully")
 
 	// Return DB instance and dispose function for graceful shutdown
 	return dbInstance, func(ctx context.Context) error {
@@ -72,6 +72,6 @@ func disposeDB(ctx context.Context, dbInstance DB) error {
 	// Close the connection pool
 	dbInstance.Close()
 
-	logger.Success("Database connection pool stopped gracefully")
+	logger.Info("Database connection pool stopped gracefully")
 	return nil
 }

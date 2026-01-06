@@ -33,7 +33,7 @@ func (d *dbImpl) Close() {
 	if d.pool != nil {
 		logger.Info("Closing database connection pool...")
 		d.pool.Close()
-		logger.Success("Database connection pool closed successfully")
+		logger.Info("Database connection pool closed successfully")
 	}
 }
 
@@ -56,7 +56,7 @@ func initDB(ctx context.Context, connectionString string, retryCount int) (*pgxp
 	var pool *pgxpool.Pool
 	var err error
 
-	logger.InfoBlock("Initializing database connection...")
+	logger.Info("Initializing database connection...")
 	logger.Info("Connection string: %s", maskConnectionString(connectionString))
 	logger.Info("Retry count: %d", retryCount)
 
@@ -113,13 +113,13 @@ func initDB(ctx context.Context, connectionString string, retryCount int) (*pgxp
 		}
 
 		// Success
-		logger.Success("Database connection established successfully")
+		logger.Info("Database connection established successfully")
 		logger.Info("Connection pool stats: MaxConns=%d, MinConns=%d", config.MaxConns, config.MinConns)
 		return pool, nil
 	}
 
 	// All retries failed
-	logger.ErrorBlock("Failed to connect to database after %d attempts", retryCount)
+	logger.Error("Failed to connect to database after %d attempts", retryCount)
 	return nil, err
 }
 

@@ -127,8 +127,3 @@ func WriteStatus(w http.ResponseWriter, status int) {
 func RespondWithJSON(w http.ResponseWriter, statusCode int, payload any) {
 	WriteJson(w, statusCode, payload)
 }
-
-// RespondWithError writes error response in JSON format
-func RespondWithError(w http.ResponseWriter, statusCode int, message string) {
-	WriteJson(w, statusCode, map[string]string{"error": message})
-}

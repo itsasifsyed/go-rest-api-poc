@@ -40,23 +40,23 @@ func main() {
 }
 
 func runMigrations(connectionString string) {
-	logger.InfoBlock("Running migrations...")
+	logger.Info("Running migrations...")
 	if err := db.RunMigrations(connectionString); err != nil {
-		logger.FatalBlock("Migration failed: %v", err)
+		logger.Fatal("Migration failed: %v", err)
 	}
-	logger.SuccessBlock("Migrations completed successfully!")
+	logger.Info("Migrations completed successfully!")
 }
 
 func rollbackMigration(connectionString string) {
-	logger.InfoBlock("Rolling back last migration...")
+	logger.Info("Rolling back last migration...")
 	if err := db.RollbackMigration(connectionString); err != nil {
-		logger.FatalBlock("Rollback failed: %v", err)
+		logger.Fatal("Rollback failed: %v", err)
 	}
-	logger.SuccessBlock("Rollback completed successfully!")
+	logger.Info("Rollback completed successfully!")
 }
 
 func showStatus(connectionString string) {
-	logger.InfoBlock("Migration Status")
+	logger.Info("Migration Status")
 	logger.Info("Connection: %s", maskConnectionString(connectionString))
 	logger.Info("\nTo check current version, connect to your database and run:")
 	logger.Info("  SELECT * FROM schema_migrations;")
@@ -65,7 +65,7 @@ func showStatus(connectionString string) {
 }
 
 func printUsage() {
-	fmt.Println(`
+	fmt.Print(`
 Database Migration Tool
 
 Usage:
@@ -91,4 +91,3 @@ func maskConnectionString(connStr string) string {
 	}
 	return "***masked***"
 }
-

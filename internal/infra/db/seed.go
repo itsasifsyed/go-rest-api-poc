@@ -25,7 +25,7 @@ func RunSeeds(ctx context.Context, pool *pgxpool.Pool, environment string) error
 		return nil
 	}
 
-	logger.InfoBlock("Running database seeds...")
+	logger.Info("Running database seeds...")
 
 	// Read all seed files
 	entries, err := seedsFS.ReadDir("seeds")
@@ -56,7 +56,7 @@ func RunSeeds(ctx context.Context, pool *pgxpool.Pool, environment string) error
 		}
 	}
 
-	logger.SuccessBlock("All seeds executed successfully!")
+	logger.Info("All seeds executed successfully!")
 	return nil
 }
 
@@ -76,6 +76,6 @@ func executeSeedFile(ctx context.Context, pool *pgxpool.Pool, filename string) e
 		return fmt.Errorf("failed to execute seed SQL: %w", err)
 	}
 
-	logger.Success("✓ Seed executed: %s", filename)
+	logger.Info("✓ Seed executed: %s", filename)
 	return nil
 }

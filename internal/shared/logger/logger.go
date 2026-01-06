@@ -2,119 +2,39 @@ package logger
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"rest_api_poc/internal/shared/timeUtils"
 	"strings"
-
-	"github.com/fatih/color"
 )
 
-// -------------------------
-// Helper to format timestamp in UTC
-// -------------------------
-func timestamp() string {
-	return timeUtils.TimeStampUTC()
-}
+// Init configures the global logger. Call once from main after config is loaded.
+// env: "dev" enables human-readable logs; everything else uses JSON.
+func Init(env string) {
+	var h slog.Handler
+	opts := &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	}
 
-type LogConfig struct {
-	Type  string
-	Color color.Attribute
-	Block bool
-	Fatal bool
-}
-
-// -------------------------
-// Log functions
-// -------------------------
-
-func logger(config LogConfig, message string, args ...any) {
-	c := color.New(config.Color)
-	msg := fmt.Sprintf(message, args...)
-	ts := timestamp()
-
-	// print block
-	if config.Block {
-		// -------------------------
-		// [2026-01-02 15:55:01] INFO: Loading configs
-		// -------------------------
-		line := strings.Repeat("-", 25)
-		c.Println(line)
-		c.Printf("[%s] %s: %s\n", ts, config.Type, msg)
-		c.Println(line)
+	if strings.EqualFold(env, "dev") || strings.EqualFold(env, "local") {
+		h = slog.NewTextHandler(os.Stdout, opts)
 	} else {
-		// [2026-01-02 15:55:01] INFO: Loading configs
-		c.Printf("[%s] %s: %s\n", ts, config.Type, msg)
+		h = slog.NewJSONHandler(os.Stdout, opts)
 	}
-	// exit for fatal logs
-	if config.Fatal {
-		os.Exit(1)
-	}
+
+	// Add stable fields every log line.
+	base := slog.New(h).With(
+		slog.String("ts", timeUtils.TimeStampUTC()),
+		slog.String("service", "rest_api_poc"),
+	)
+	slog.SetDefault(base)
 }
 
-// INFO - blue
-func Info(message string, args ...any) {
-	logger(LogConfig{Type: "INFO", Color: color.FgBlue, Block: false, Fatal: false}, message, args...)
-}
+func Info(message string, args ...any)  { slog.Info(fmt.Sprintf(message, args...)) }
+func Warn(message string, args ...any)  { slog.Warn(fmt.Sprintf(message, args...)) }
+func Error(message string, args ...any) { slog.Error(fmt.Sprintf(message, args...)) }
 
-func InfoBlock(message string, args ...any) {
-	logger(LogConfig{Type: "INFO", Color: color.FgBlue, Block: true, Fatal: false}, message, args...)
-}
-
-// WARN - orange/yellow
-func Warn(message string, args ...any) {
-	logger(LogConfig{Type: "WARN", Color: color.FgYellow, Block: false, Fatal: false}, message, args...)
-}
-
-func WarnBlock(message string, args ...any) {
-	logger(LogConfig{Type: "WARN", Color: color.FgYellow, Block: true, Fatal: false}, message, args...)
-}
-
-// SUCCESS - green
-func Success(message string, args ...any) {
-	logger(LogConfig{Type: "SUCCESS", Color: color.FgGreen, Block: false, Fatal: false}, message, args...)
-}
-func SuccessBlock(message string, args ...any) {
-	logger(LogConfig{Type: "SUCCESS", Color: color.FgGreen, Block: true, Fatal: false}, message, args...)
-}
-
-// ERROR - red
-func Error(message string, args ...any) {
-	logger(LogConfig{Type: "ERROR", Color: color.FgRed, Block: false, Fatal: false}, message, args...)
-}
-func ErrorBlock(message string, args ...any) {
-	logger(LogConfig{Type: "ERROR", Color: color.FgRed, Block: true, Fatal: false}, message, args...)
-}
-
-// FATAL - red and exit
 func Fatal(message string, args ...any) {
-	logger(LogConfig{Type: "FATAL", Color: color.FgRed, Block: false, Fatal: true}, message, args...)
-}
-func FatalBlock(message string, args ...any) {
-	logger(LogConfig{Type: "FATAL", Color: color.FgRed, Block: true, Fatal: true}, message, args...)
-}
-
-// -------------------------
-// Empty color blocks
-// -------------------------
-func logBlock(lines int, logColor color.Attribute) {
-	var line = strings.Repeat("-", 25)
-	c := color.New(logColor)
-	for i := 0; i < lines; i++ {
-		c.Printf("%s\n", line)
-	}
-}
-func EmptyInfoBlock(lines int) {
-	logBlock(lines, color.FgBlue)
-}
-
-func EmptyWarnBlock(lines int) {
-	logBlock(lines, color.FgYellow)
-}
-
-func EmptySuccessBlock(lines int) {
-	logBlock(lines, color.FgGreen)
-}
-
-func EmptyErrorBlock(lines int) {
-	logBlock(lines, color.FgRed)
+	slog.Error(fmt.Sprintf(message, args...))
+	os.Exit(1)
 }
