@@ -5,6 +5,7 @@ import (
 	"rest_api_poc/internal/di"
 	"rest_api_poc/internal/domain/health"
 	"rest_api_poc/internal/domain/product"
+	"rest_api_poc/internal/domain/user"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -22,10 +23,10 @@ func SetupRouter(container *di.Container) http.Handler {
 	// Product routes
 	product.RegisterRoutes(r, container.ProductHandler)
 
+	// User routes
+	user.RegisterRoutes(r, container.UserHandler)
+
 	// Future modules can be added here:
-	// userHandler := container.UserModule()
-	// user.RegisterRoutes(r, userHandler)
-	//
 	// authHandler := container.AuthModule()
 	// auth.RegisterRoutes(r, authHandler)
 
