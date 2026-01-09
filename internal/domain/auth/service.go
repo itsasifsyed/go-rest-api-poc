@@ -503,33 +503,27 @@ func (s *Service) createSession(ctx context.Context, user *UserWithAuth, r *http
 		CreatedAt:      time.Now(),
 	}
 
-	// Generate tokens (need session ID first, so we'll use a temporary ID)
-	tempSessionID := "temp"
-	accessToken, err := s.jwtService.GenerateAccessToken(user.ID, user.Email, user.Role, tempSessionID)
+	// The DB schema requires a NOT NULL UNIQUE refresh_token_hash, but we can't generate the
+	// real refresh token until we have a real session ID. So we insert with a random
+	// placeholder hash that is never exposed to clients, then update it immediately.
+	placeholder, err := GenerateSecureToken()
 	if err != nil {
-		return nil, "", "", fmt.Errorf("failed to generate access token: %w", err)
+		return nil, "", "", fmt.Errorf("failed to generate placeholder token: %w", err)
 	}
-
-	refreshToken, err := s.jwtService.GenerateRefreshToken(user.ID, tempSessionID, refreshLifetime)
-	if err != nil {
-		return nil, "", "", fmt.Errorf("failed to generate refresh token: %w", err)
-	}
-
-	// Hash refresh token
-	session.RefreshTokenHash = HashToken(refreshToken)
+	session.RefreshTokenHash = HashToken(placeholder)
 
 	// Create session in database
 	if err := s.repo.CreateSession(ctx, session); err != nil {
 		return nil, "", "", fmt.Errorf("failed to create session: %w", err)
 	}
 
-	// Now regenerate tokens with actual session ID
-	accessToken, err = s.jwtService.GenerateAccessToken(user.ID, user.Email, user.Role, session.ID)
+	// Now generate tokens with actual session ID
+	accessToken, err := s.jwtService.GenerateAccessToken(user.ID, user.Email, user.Role, session.ID)
 	if err != nil {
 		return nil, "", "", fmt.Errorf("failed to generate access token: %w", err)
 	}
 
-	refreshToken, err = s.jwtService.GenerateRefreshToken(user.ID, session.ID, refreshLifetime)
+	refreshToken, err := s.jwtService.GenerateRefreshToken(user.ID, session.ID, refreshLifetime)
 	if err != nil {
 		return nil, "", "", fmt.Errorf("failed to generate refresh token: %w", err)
 	}
@@ -539,6 +533,7 @@ func (s *Service) createSession(ctx context.Context, user *UserWithAuth, r *http
 	if err := s.repo.UpdateSessionRefreshToken(ctx, session.ID, newTokenHash); err != nil {
 		return nil, "", "", fmt.Errorf("failed to update session: %w", err)
 	}
+	session.RefreshTokenHash = newTokenHash
 
 	// Cache session/user for faster auth checks (best-effort)
 	if s.cache != nil {
